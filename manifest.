@@ -1,0 +1,20 @@
+{
+  "name": "Church School Ministry",
+  "short_name": "CSMinistry",
+  "start_url": "https://https://noelmuthomi.github.io/churchschool/index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2b5a8c",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
