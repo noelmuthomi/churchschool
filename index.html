@@ -1,14 +1,149 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Church School Ministry</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        body, html { margin: 0; padding: 0; height: 100%; overflow: hidden; }
-        iframe { width: 100%; height: 100%; border: none; }
-    </style>
+<meta charset="utf-8">
+<title>Church School Ministry</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Church School Ministry management app">
+
+<!-- Colours -->
+<meta name="theme-color" content="#1b2a5c">
+
+<!-- PWA / Android -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- iOS home-screen app -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Church School">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<meta name="format-detection" content="telephone=no">
+
+<style>
+  :root{--navy:#1b2a5c;--gold:#d4a72c}
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--navy);overflow:hidden;overscroll-behavior:none;
+            -webkit-text-size-adjust:100%;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  /* App frame sits between the status bar and the home indicator */
+  #app{position:fixed;left:0;right:0;border:0;width:100%;background:#fff;
+       top:env(safe-area-inset-top,0px);bottom:env(safe-area-inset-bottom,0px);
+       height:calc(100% - env(safe-area-inset-top,0px) - env(safe-area-inset-bottom,0px))}
+
+  /* Loading splash */
+  #splash{position:fixed;inset:0;z-index:5;display:flex;flex-direction:column;align-items:center;
+          justify-content:center;background:var(--navy);color:#fff;text-align:center;padding:24px;
+          transition:opacity .35s}
+  #splash.hide{opacity:0;pointer-events:none}
+  #splash img{width:96px;height:96px;border-radius:22px;margin-bottom:18px}
+  #splash h1{font-size:1.25rem;margin:0 0 18px}
+  .spin{width:28px;height:28px;border:3px solid rgba(255,255,255,.25);border-top-color:var(--gold);
+        border-radius:50%;animation:s 0.9s linear infinite}
+  @keyframes s{to{transform:rotate(360deg)}}
+  #slow{display:none;margin-top:22px;font-size:.95rem;opacity:.9}
+  #slow a{color:var(--gold);font-weight:700}
+
+  /* Install banner */
+  #install{position:fixed;z-index:10;left:12px;right:12px;display:none;gap:12px;align-items:center;
+           bottom:calc(12px + env(safe-area-inset-bottom,0px));background:var(--navy);color:#fff;
+           border-radius:16px;padding:12px 14px;box-shadow:0 6px 24px rgba(0,0,0,.35);font-size:.9rem;line-height:1.35}
+  #install.show{display:flex}
+  #install .txt{flex:1}
+  #install button,#install a.btn{background:var(--gold);color:var(--navy);border:0;border-radius:10px;
+           padding:9px 14px;font-weight:700;font-size:.85rem;text-decoration:none;white-space:nowrap}
+  #install .x{background:transparent!important;color:#fff!important;padding:6px 8px!important;font-size:1.1rem!important}
+  #install .row{display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap}
+  .ios-ico{display:inline-block;border:1.5px solid currentColor;border-radius:4px;width:.95em;height:.95em;
+           vertical-align:-.15em;position:relative}
+</style>
 </head>
 <body>
-    <iframe src="https://script.google.com/macros/s/AKfycbzZq8yKnOq_TBpZ9uQAhit2pMY8aWLPR4oB5_0VciHLjEGKIVU4Sf3ZkVZQA4TnWt8j/exec"></iframe>
+
+<iframe id="app" title="Church School Ministry"
+        allow="clipboard-write; fullscreen; camera; microphone; geolocation"
+        referrerpolicy="strict-origin-when-cross-origin"></iframe>
+
+<div id="splash">
+  <img src="icons/icon-192.png" alt="">
+  <h1>Church School Ministry</h1>
+  <div class="spin" aria-label="Loading"></div>
+  <div id="slow">Taking longer than usual…<br><a id="direct" href="#">Open the app directly</a></div>
+</div>
+
+<div id="install" role="dialog" aria-label="Install app">
+  <div class="txt" id="installTxt"></div>
+  <button class="x" id="installClose" aria-label="Dismiss">✕</button>
+</div>
+
+<noscript><p style="color:#fff;padding:24px">Please enable JavaScript to use this app.</p></noscript>
+
+<script>
+(function () {
+  // ======= CONFIG: your Google Apps Script web app URL =======
+  var APP_URL = "https://script.google.com/macros/s/AKfycbzZq8yKnOq_TBpZ9uQAhit2pMY8aWLPR4oB5_0VciHLjEGKIVU4Sf3ZkVZQA4TnWt8j/exec";
+  var APK_URL = "https://github.com/noelmuthomi/churchschool/releases/latest/download/church-school.apk";
+  // ============================================================
+
+  var frame = document.getElementById('app');
+  var splash = document.getElementById('splash');
+  var slow = document.getElementById('slow');
+  var direct = document.getElementById('direct');
+
+  // Forward ?query and #hash (deep links) to the Apps Script app, minus our own "source" flag
+  var qs = new URLSearchParams(location.search); qs.delete('source');
+  var target = APP_URL + (qs.toString() ? '?' + qs.toString() : '') + location.hash;
+  direct.href = target;
+
+  // ?direct=1 → skip the frame (useful if Google sign-in is needed)
+  if (new URLSearchParams(location.search).get('direct') === '1') { location.replace(target); return; }
+
+  frame.src = target;
+  var slowTimer = setTimeout(function () { slow.style.display = 'block'; }, 12000);
+  frame.addEventListener('load', function () {
+    clearTimeout(slowTimer);
+    splash.classList.add('hide');
+    setTimeout(function () { splash.style.display = 'none'; }, 400);
+  });
+
+  // ---- Service worker ----
+  if ('serviceWorker' in navigator) {
+    addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+
+  // ---- Install prompts ----
+  var ua = navigator.userAgent || '';
+  var isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  var isAndroid = /android/i.test(ua);
+  var standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
+  var box = document.getElementById('install'), txt = document.getElementById('installTxt');
+  var dismissedKey = 'cs_install_dismissed', deferred = null;
+
+  function dismissed() { try { return localStorage.getItem(dismissedKey) === '1'; } catch (e) { return false; } }
+  document.getElementById('installClose').onclick = function () {
+    box.classList.remove('show');
+    try { localStorage.setItem(dismissedKey, '1'); } catch (e) {}
+  };
+
+  function show(html) { txt.innerHTML = html; if (!standalone && !dismissed()) setTimeout(function () { box.classList.add('show'); }, 2500); }
+
+  if (!standalone) {
+    if (isIOS) {
+      show('<strong>Install this app</strong><br>Tap <span class="ios-ico"></span> <strong>Share</strong>, then ' +
+           '<strong>Add to Home Screen</strong>.');
+    } else if (isAndroid) {
+      show('<strong>Get the app</strong><div class="row"><a class="btn" href="' + APK_URL + '">Download APK</a>' +
+           '<button id="pwaBtn" style="display:none">Add to Home screen</button></div>');
+    }
+  }
+  addEventListener('beforeinstallprompt', function (e) {
+    e.preventDefault(); deferred = e;
+    if (!isAndroid && !isIOS) show('<strong>Install Church School</strong><div class="row"><button id="pwaBtn">Install</button></div>');
+    var b = document.getElementById('pwaBtn');
+    if (b) { b.style.display = ''; b.onclick = function () { deferred.prompt(); deferred = null; box.classList.remove('show'); }; }
+  });
+  addEventListener('appinstalled', function () { box.classList.remove('show'); });
+})();
+</script>
 </body>
 </html>
